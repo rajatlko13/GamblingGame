@@ -1,0 +1,129 @@
+1. How is gas usage calculated?
+
+In ethereum, certain amount of gas is used to do any transaction. Higher the computational power required to carry out the transaction, higher the gas spent. To calculate the gas spent to execute any smart contract code, we need to understand the ethereum fee schedule as specified in the whitepaper, which clearly specifies the gas required for each operation to take place. Suppose the user sends a transaction with some specific gas amount and the corresponding gas fees ,then the transaction will be successful only if the gas spent by the user is sufficient enough to carry out the whole transaction. Total transaction cost can be calculated as (gas used) * (gas price). If the amount of gas send by the user is less than required by the transaction to complete, then the transaction is reverted and whole fees is paid to the miner.
+
+2. What’s the difference between storage, memory, and stack?
+Storage - It is used to store the data permanently, and reading and writing to storage is generally quite expensive task. 
+Memory - It stores data temporarily which is only available during specific function calls, and deleted when the function execution is completed. Reading and writing to memory is much cheaper than storage. 
+Stack - It is used to store data required for immediate processing and usually manipulated during inline assembly. 
+
+
+3. What are modifiers used for? Provide an example.
+
+As the name suggests, a modifieer is used to modify the behaviour of a function. Most of the time it is used to check the required condition before executing the function. For example - 
+
+contract Owner {
+   address public owner;
+   constructor() {
+      owner = msg.sender;
+   }
+
+   modifier onlyOwner {
+      require(msg.sender == owner);
+      _;
+   }
+
+   function changeOwner(address newOwner) public onlyOwner {
+      owner = newOwner;
+   }
+}
+
+In this contract, we have created the modifier onlyOwner which will check whether the calling address is actually the contract owner or not. We have used this modifier with changeOwner function, so first of all the modifier verify that the fucntion has been called by the owner or not, and the function will execute further only if it was called by the original owner. Modifiers also help to reduce code redundancy since they can be used with other functions as well.
+
+4. What are interfaces in solidity? Write an example interface.
+
+Interface are similar to abstract contracts and only have function headers(no implementation). Other contracts can implement these interfaces and override these functions to implement thir own logic. For example, openzeppelin has got the interface IERC20, which lists all the functions required by a standard ERC20 contract. Contracts can implement this interface and create their own ERC20 compatible token easily. Another example - 
+
+pragma solidity ^0.8.4;
+interface Calculator {
+   function getSum() external pure returns(uint);
+}
+contract Test is Calculator {
+   constructor() {}
+   function getSum() external pure override returns(uint){
+      uint a = 1; 
+      uint b = 2;
+      uint sum = a + b;
+      return sum;
+   }
+}
+
+Here, the contract Test implements the Calculator interface and overrides its getSum() function.
+
+5. What is a proxy contract? Provide a code example of how it can be used.
+
+Proxy contracts are required to upgrade the current logic contract. Proxy contract stores the address of the latest deployed contract and delegates call to it. If someone upgrades  the contract logicand deploys it, then we just need to update the reference(address) in a Proxy contract with that new contract address. For example - 
+
+pragma solidity ^0.4.21;
+
+import './Ownable.sol';
+import './Storage.sol';
+
+contract Registry is Storage, Ownable {
+
+    address public logic_contract;
+
+    function setLogicContract(address _c) public onlyOwner returns (bool success){
+        logic_contract = _c;
+        return true;
+    }
+
+    // Fallback function to perform a delegatecall to the logic contract.
+    // This function will return whatever the logic contract call returns.
+    function () payable public {
+        address target = logic_contract;
+        assembly {
+            let ptr := mload(0x40)
+            calldatacopy(ptr, 0, calldatasize)
+            let result := delegatecall(gas, target, ptr, calldatasize, 0, 0)
+            let size := returndatasize
+            returndatacopy(ptr, 0, size)
+            switch result
+            case 0 { revert(ptr, size) }
+            case 1 { return(ptr, size) }
+        }
+    }
+}
+
+6. Fix the code below so it will function as intended.
+
+pragma solidity ^0.5.0;
+import './interfaces/IToken.sol';
+import './ERC20.sol';
+contract Token is ERC20, IToken {
+
+	address public owner;
+	string public name;
+	string public symbol;
+	uint8 public decimals;
+	bool public initialized = false;
+		
+	function initialize(
+	address _owner,
+	string calldata _name,
+	string calldata _symbol,
+	uint8 _decimals
+	) external {
+		require(initialized == false);
+		owner = _owner;
+		name = _name;
+		symbol = _symbol;
+		decimals = _decimals;
+		initialized = true;
+	}
+		
+	function setOwner(address _owner) external {
+	    require(owner == msg.sender);
+		owner = _owner;
+	}
+		
+	function mint(address recipient, uint amount) external {
+	    require(owner == msg.sender);
+		_mint(recipient, amount);
+	}
+		
+	function burn(address recipient, uint amount) external {
+	    require(owner == msg.sender);
+		_burn(recipient, amount);
+	}
+}

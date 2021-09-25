@@ -93,7 +93,7 @@ module.exports = {
       provider: function() {
         return new HDWalletProvider({
           mnemonic: {
-            phrase: "wood shiver rice upon ride island olive source scheme unusual people gauge"
+            phrase: process.env.MNEMONIC
           },
           providerOrUrl: `https://kovan.infura.io/v3/${process.env.INFURA_API_KEY}`
         })
